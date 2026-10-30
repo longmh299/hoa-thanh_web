@@ -1,0 +1,195 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Category {
+  id              Int        @id @default(autoincrement())
+  slug            String     @unique
+  name            String
+  order           Int        @default(0)
+  parentId        Int?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  banner          String?
+  canonicalUrl    String?
+  metaDescription String?
+  metaTitle       String?
+  nofollow        Boolean    @default(false)
+  noindex         Boolean    @default(false)
+  ogImage         String?
+  parent          Category?  @relation("CategoryToChildren", fields: [parentId], references: [id])
+  children        Category[] @relation("CategoryToChildren")
+  products        Product[]
+  isFeatured      Boolean    @default(false)
+
+  @@index([parentId])
+  @@index([name])
+}
+
+model Product {
+  id              Int                @id @default(autoincrement())
+  slug            String             @unique
+  name            String
+  short           String?
+  description     String?
+  specTable       Json? // nullable
+  sku             String?            @unique
+  price           Int?
+  isFeatured      Boolean            @default(false)
+  published       Boolean            @default(true)
+  coverImage      String?
+  categoryId      Int?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  canonicalUrl    String?
+  metaDescription String?
+  metaTitle       String?
+  nofollow        Boolean            @default(false)
+  noindex         Boolean            @default(false)
+  ogImage         String?
+  dimensions      String?
+  functions       String?
+  material        String?
+  power           String?
+  voltage         String?
+  weight          String?
+  warranty        String?
+  highlights      String[]           @default([])
+  videoUrl        String?
+  category        Category?          @relation(fields: [categoryId], references: [id])
+  attributes      ProductAttribute[]
+  images          ProductImage[]
+  faqs            Json?
+
+  @@index([categoryId])
+  @@index([name])
+  @@index([categoryId, createdAt])
+}
+
+model ProductImage {
+  id        Int     @id @default(autoincrement())
+  url       String
+  alt       String?
+  sort      Int     @default(0)
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+model ProductAttribute {
+  id        Int     @id @default(autoincrement())
+  name      String
+  value     String
+  sort      Int     @default(0)
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+
+  @@index([productId])
+  @@index([sort])
+}
+
+model PostCategory {
+  id              Int            @id @default(autoincrement())
+  slug            String         @unique
+  name            String
+  order           Int            @default(0)
+  parentId        Int?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  banner          String?
+  canonicalUrl    String?
+  metaDescription String?
+  metaTitle       String?
+  nofollow        Boolean        @default(false)
+  noindex         Boolean        @default(false)
+  ogImage         String?
+  posts           Post[]
+  parent          PostCategory?  @relation("PostCategoryToChildren", fields: [parentId], references: [id])
+  children        PostCategory[] @relation("PostCategoryToChildren")
+
+  @@index([parentId])
+  @@index([name])
+}
+
+model Post {
+  id              Int           @id @default(autoincrement())
+  slug            String        @unique
+  title           String
+  excerpt         String?
+  content         String?
+  coverImage      String?
+  tags            String[]
+  published       Boolean       @default(true)
+  categoryId      Int?
+  metaTitle       String?
+  metaDescription String?
+  canonicalUrl    String?
+  ogImage         String?
+  noindex         Boolean       @default(false)
+  nofollow        Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  category        PostCategory? @relation(fields: [categoryId], references: [id])
+
+  @@index([categoryId])
+  @@index([published, createdAt])
+  @@index([title])
+}
+
+model SlugRedirect {
+  id         String     @id @default(cuid())
+  fromSlug   String     @unique
+  toSlug     String
+  createdAt  DateTime   @default(now())
+  entityType EntityType
+
+  @@index([entityType])
+}
+
+model ContactMessage {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  email     String?
+  phone     String?
+  subject   String?
+  message   String
+  createdat DateTime @default(now()) @db.Timestamp(6)
+  ip        String?
+  useragent String?
+  page      String?
+  /// "new" = mới, "done" = đã xử lý
+  status    String   @default("new") @db.VarChar(20)
+  /// Ghi chú nội bộ của nhân viên (đã gọi lại, đã báo giá…)
+  note      String?
+
+  @@index([status, createdat])
+}
+
+enum EntityType {
+  post
+  product
+  category
+  postCategory
+}
+/// Lượt khách bấm Gọi / Zalo / Messenger / Email / Báo giá / Gửi form trên website
+model ClickEvent {
+  id        Int      @id @default(autoincrement())
+  /// call | zalo | messenger | email | quote | form
+  type      String   @db.VarChar(20)
+  /// Trang khách đang xem khi bấm, VD: /san-pham/may-hut-chan-khong-dz-400
+  page      String   @db.VarChar(300)
+  /// Nút nào được bấm (chữ trên nút), để biết vị trí nút hiệu quả
+  label     String?  @db.VarChar(120)
+  /// mobile | desktop
+  device    String?  @db.VarChar(10)
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([type, createdAt])
+}
